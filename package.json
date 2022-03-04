@@ -1,0 +1,17 @@
+{
+  "name": "stallinessanalysis",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile": "tsc",
+    "start": "tsc && node out/index.js",
+    "clean": "mv *.txt data && rm src/*.js && rm -rf out"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pkmn/sets": "^2.0.0",
+    "@types/node": "^17.0.21"
+  }
+}
