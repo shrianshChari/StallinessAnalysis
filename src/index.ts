@@ -12,5 +12,8 @@ let team_file = fs.readFile(file_path, 'utf8', (err, data) => {
 		return;
 	}
 	let pokemon_sets = importTeam(data)
-	console.log(`${JSON.stringify(pokemon_sets)}`)
+
+	// Removing uppercase, spaces, and dashes
+	pokemon_sets = JSON.parse(JSON.stringify(pokemon_sets).toLowerCase().replace(' ', '').replace('-', ''))
+	console.log(`${JSON.stringify(pokemon_sets)}`) 
 })
