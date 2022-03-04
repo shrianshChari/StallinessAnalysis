@@ -16,6 +16,15 @@ if (process.argv.length < 3) {
 		}
 		let pokemon_sets = importTeam(data)
 
+		let gen = 8;
+
+		if (process.argv.length == 4) {
+			if (isNaN(parseInt(process.argv[3]))) {
+				gen = parseInt(process.argv[3])
+				gen = Math.min(8, gen);
+			}
+		}
+
 		// Removing uppercase, spaces, and dashes
 		pokemon_sets = JSON.parse(JSON.stringify(pokemon_sets).toLowerCase().replace(' ', '').replace('-', ''))
 		console.log(`${JSON.stringify(pokemon_sets)}`) 

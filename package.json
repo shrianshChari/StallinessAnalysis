@@ -11,6 +11,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@pkmn/data": "^0.5.10",
+    "@pkmn/dex": "^0.5.10",
     "@pkmn/sets": "^2.0.0",
     "@types/node": "^17.0.21"
   }
