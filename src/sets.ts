@@ -15,5 +15,5 @@ export function importTeam(str: string): PokemonSet[] {
 		team_sets.push(set)
 	}
 
-	return team_sets;
+	return team_sets; // I could use the Teams class, but this is just easier
 }
