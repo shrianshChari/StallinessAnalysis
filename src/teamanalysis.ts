@@ -1,27 +1,28 @@
 import { PokemonSet } from "@pkmn/sets";
 import { Dex, GenerationNum, StatsTable } from "@pkmn/dex";
 import { Generations } from "@pkmn/data";
+import { intersection } from "lodash";
 
 // Copied from Antar1011's implementation in Python
 // https://github.com/Antar1011/Smogon-Usage-Stats
 
 // Default gen is SwSh
 export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | undefined { 
-	const currentGen = new Generations(Dex).get(gen as GenerationNum)
+	const currentGen = new Generations(Dex).get(gen as GenerationNum);
 
-	let pokemon_species = currentGen.species.get(mon.species)
+	let pokemon_species = currentGen.species.get(mon.species);
 
 	// Checking if the pokemon exists
 	if (pokemon_species === undefined) {
-		console.log('Your Pokemon doesn\'t seem to exist.')
+		console.log('Your Pokemon doesn\'t seem to exist.');
 		return undefined;
 	}
 
 	// Calculates differential for offense investment vs defense investment 
-	let bias = mon.evs.atk + mon.evs.spa - (mon.evs.hp + mon.evs.def + mon.evs.spd)
+	let bias = mon.evs.atk + mon.evs.spa - (mon.evs.hp + mon.evs.def + mon.evs.spd);
 
 	// Calculates the Pokemon's in-game stats
-	let stats: StatsTable = {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0}
+	let stats: StatsTable = {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
 
 	stats.hp = currentGen.stats.calc('hp', pokemon_species.baseStats.hp,
 																	 mon.ivs.hp, mon.evs.hp, mon.level,
@@ -287,7 +288,211 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		stalliness: stalliness
 	}
 
-	return mon_stall 
+	return mon_stall;
+}
+
+function analyzeTeam(team: PokemonSet[], gen: number = 8) {
+	let total_bias = 0;
+	let total_stalliness: number[] = [];
+	let team_tags: string[] = [];
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+
+		// Will want to include Mega Pokemon at some point
+		// This includes Megas, Primals, Darm-Zen, and Meloetta-Pirouette
+
+		let mon_stall = analyzePokemon(mon);
+		if (mon_stall) { // If it isn't undefined
+			total_bias += mon_stall.bias;
+			total_stalliness.push(mon_stall.stalliness);
+
+			
+		}
+	}
+
+	// Tags
+
+
+	// Weather
+	let num_rain = 0;
+	let rain_detected = false;
+
+	let num_sun = 0;
+	let sun_detected = false;
+
+	let num_sand = 0;
+	let sand_detected = false;
+
+	let num_hail = 0;
+	let hail_detected = false;
+
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+
+		// Rain
+		if (mon.ability === 'drizzle' || mon.ability === 'primordialsea') {
+			// Idk about Primordial Sea
+			rain_detected = true;
+		} else if (mon.item === 'damprock' &&
+							 mon.moves.includes('raindance')) {
+			rain_detected = true;
+		} else if (mon.moves.includes('raindance')) {
+			// Multiple rain setters
+			num_rain++;
+			if (num_rain > 1) {
+				rain_detected = true;
+			}
+		}
+		
+		
+		// Sun 
+		if (mon.ability === 'drought' || mon.ability === 'desolateland') {
+			// Idk about Desolate Land 
+			sun_detected = true;
+		} else if (mon.item === 'heatrock' &&
+							 mon.moves.includes('sunnyday')) {
+			sun_detected = true;
+		} else if (mon.moves.includes('sunnyday')) {
+			// Multiple sun setters
+			num_sun++;
+			if (num_sun > 1) {
+				sun_detected = true;
+			}
+		}
+
+
+		// Sand
+		if (mon.ability === 'sandstream') {
+			sand_detected = true;
+		} else if (mon.item === 'smoothrock' &&
+							 mon.moves.includes('sandstorm')) {
+			sand_detected = true;
+		} else if (mon.moves.includes('sandstorm')) {
+			// Multiple sand setters
+			num_sand++;
+			if (num_sand > 1) {
+				sand_detected = true;
+			}
+		}
+
+
+		// Hail
+		if (mon.ability === 'snowwarning') {
+			hail_detected = true;
+		} else if (mon.item === 'icyrock' &&
+							 mon.moves.includes('hail')) {
+			hail_detected = true;
+		} else if (mon.moves.includes('hail')) {
+			// Multiple hail setters
+			num_hail++;
+			if (num_hail > 1) {
+				hail_detected = true;
+			}
+		}
+	}
+
+	if (rain_detected)
+		team_tags.push('rain');
+	
+	if (sun_detected)
+		team_tags.push('sun');
+	
+	if (sand_detected) {
+		team_tags.push('sand');
+	}
+	
+	if (hail_detected) {
+		team_tags.push('hail');
+	}
+	
+	if (team_tags.length == 4) {
+		// Chad all weather user
+		team_tags.push('allweather');
+	} else if (team_tags.length > 1) {
+		team_tags.push('multiweather');
+	} else if (team_tags.length == 0) {
+		team_tags.push('weatherless');
+	}
+
+	// Baton Pass
+	let boosts =  ['acupressure', 'bellydrum', 'bulkup', 'coil', 'curse',
+		'dragondance', 'growth', 'honeclaws', 'howl', 'meditate', 'sharpen',
+		'shellsmash', 'shiftgear', 'swordsdance', 'workup', 'calmmind',
+		'chargebeam', 'fierydance', 'nastyplot', 'tailglow', 'quiverdance',
+		'agility', 'autotomize', 'flamecharge', 'rockpolish', 'doubleteam',
+		'minimize', 'substitute', 'acidarmor', 'barrier', 'cosmicpower',
+		'cottonguard', 'defendorder', 'defensecurl', 'harden', 'irondefense',
+		'stockpile', 'withdraw', 'amnesia', 'charge', 'ingrain'] ;
+	let num_pass = 0;
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if (mon.moves.includes('batonpass')) {
+			// Does smashpass and geopass count as a baton pass team?
+			// if so, this line will be more useful
+			// if (mon.moves.includes('geomancy') || mon.moves.includes('shellsmash'))
+			if(intersection(mon.moves, boosts).length > 0) {
+				num_pass++;
+			}
+		}
+	}
+
+	if (num_pass > 1) {
+		team_tags.push('batonpass');
+	}
+
+	// Tailwind(?)
+	let num_wind = 0;
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if (mon.moves.includes('tailwind')) {
+			num_wind++;
+		}
+	}
+
+	if (num_wind) {
+		team_tags.push('tailwind');
+	}
+
+	// Trick Room
+	let num_setters = 0;
+	let num_abusers = 0;
+	let minus_speed = ['brave', 'relaxed', 'quiet', 'sassy'];
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if (mon.moves.includes('trickroom')) {
+			num_setters++;
+		} else if (minus_speed.includes(mon.ability) || mon.evs.spe < 5) {
+			num_abusers++;
+		} else {
+			const currentGen = new Generations(Dex).get(gen as GenerationNum);
+
+			let pokemon_species = currentGen.species.get(mon.species);
+			if (pokemon_species && pokemon_species.baseStats.spe < 50) {
+				// Arbitrary cutoff, but whatever
+				num_abusers++;
+			}
+		}
+	}
+
+	if ((num_setters > 1 && num_abusers > 1) || num_setters > 2) {
+		team_tags.push('trickroom');
+
+		// TrickWeather(?)
+		if (team_tags.includes('rain')) {
+			team_tags.push('trickrain');
+		}
+		if (team_tags.includes('sun')) {
+			team_tags.push('tricksun');
+		}
+		if (team_tags.includes('sand')) {
+			team_tags.push('tricksand');
+		}
+		if (team_tags.includes('hail')) {
+			team_tags.push('trickhail');
+		}
+	}
+
+	
 }
 
 export interface Stalliness {
@@ -295,12 +500,8 @@ export interface Stalliness {
 	stalliness: number
 }
 
-/*
- * Returns the intersection of the two arrays, with no duplicate
- * elements.
- */
-function intersection(arr1: string[], arr2: string[]): string[] {
-	let arr2_s = new Set(arr2)
-	let intersection_s = new Set(arr1.filter(value => arr2_s.has(value)))
-	return Array.from(intersection_s)
+interface TeamStalliness {
+	total_bias: number
+	total_stalliness: number[]
+	team_tags: string[]
 }
