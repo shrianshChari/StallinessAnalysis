@@ -24,6 +24,16 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 	// Calculates the Pokemon's in-game stats
 	let stats: StatsTable = {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
 
+	// Mons IVs aren't always defined
+	if (mon.ivs == undefined) {
+		mon.ivs = {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
+	}
+	
+	// Nor is their level
+	if (mon.level == undefined) {
+		mon.level = 100;
+	}
+
 	stats.hp = currentGen.stats.calc('hp', pokemon_species.baseStats.hp,
 																	 mon.ivs.hp, mon.evs.hp, mon.level,
 																	 currentGen.natures.get(mon.nature));
@@ -52,152 +62,204 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		// Not sure where this comes from, but it's probably in his thread
 		stalliness = Math.log2(3);
 	} else {
-		let roll = (1 + 0.85) / 2;
+
+		// For some reason, this calculation becomes slightly off
+		// All the stats get calculated perfectly fine, so I don't know why
+		// my calculations differ from what I would receive from Antar's
+		// script.
+		
+		let roll = 0.925;
 		let base_power = 120;
-		stalliness = -1 * Math.log2(((2 * mon.level + 10) / 250 *
-																 Math.max(stats.atk, stats.spa) /
-																 Math.max(stats.def, stats.spd) *
-																 base_power + 2) * roll / stats.hp);
+		let off = Math.max(stats.atk, stats.spa);
+		let def = Math.max(stats.def, stats.spd)
+
+		let damage = ((2 * mon.level + 10) * (off / def) * base_power / 250 + 2) * roll;
+		stalliness = -1 * Math.log2(damage / stats.hp);
+
+		console.log(stats);
+		let debug_damage =`Level: ${mon.level}\nOffense: ${off}\nDefense: ${def}\nBase Power: ${base_power}\nRoll: ${roll}\nRaw Damage: ${damage}\nHP: ${stats.hp}\nRaw Stalliness: ${stalliness}`; 
+		console.log(debug_damage);
 	}
 
+
 	// Moveset modifications
-	if (mon.ability === 'hugepower' || mon.ability === 'purepower')
+	if (mon.ability === 'hugepower' || mon.ability === 'purepower') {
 		stalliness -= 1;
-	if (mon.item.substring(0, 6) === 'choice' || mon.item === 'lifeorb')
+	}
+	let choice_items = ['choicescarf', 'choiceband', 'choicespecs'];
+	if (choice_items.includes(mon.item) || mon.item === 'lifeorb') {
 		stalliness -= 0.5;
-	if (mon.item === 'eviolite' && pokemon_species.prevo != undefined)
+	}
+	if (mon.item === 'eviolite' && pokemon_species.prevo != undefined) {
 		stalliness += 0.5;
-	if (mon.moves.includes('spikes'))
+	}
+	if (mon.moves.includes('spikes')) {
 		stalliness += 0.5;
-	if (mon.moves.includes('toxicspikes'))
+	}
+	if (mon.moves.includes('toxicspikes')) {
 		stalliness += 0.5;
-	if (mon.moves.includes('toxic'))
+	}
+	if (mon.moves.includes('toxic')) {
 		stalliness += 1;
-	if (mon.moves.includes('willowisp'))
+	}
+	if (mon.moves.includes('willowisp')) {
 		stalliness += 0.5;
+	}
 
-	let healing_moves = ['recover' ,'slackoff', 'healorder', 'milkdrink', 'roost',
-		'moonlight', 'morningsun', 'synthesis', 'wish', 'aquaring', 'rest',
-		'softboiled', 'swallow', 'leechseed'];
-	if (intersection(mon.moves, healing_moves).length != 0)
+	let healing_moves = ['recover' ,'slackoff', 'healorder', 'milkdrink',
+		'roost', 'moonlight', 'morningsun', 'synthesis', 'wish', 'aquaring',
+		'rest', 'softboiled', 'swallow', 'leechseed'];
+	if (intersection(mon.moves, healing_moves).length != 0) {
 		stalliness += 1;
+	}
 
-	if (mon.ability === 'regenerator')
+	if (mon.ability === 'regenerator') {
 		stalliness += 0.5;
+	}
 	
 	let remove_status = ['healbell', 'aromatherapy'];
-	if (intersection(mon.moves, remove_status).length != 0)
+	if (intersection(mon.moves, remove_status).length != 0) {
 		stalliness += 0.5;
+	}
 
 	let offensive_abilities = ['chlorophyll', 'download', 'hustle', 'moxie',
 		'reckless', 'sandrush', 'solarpower', 'swiftswim', 'technician',
 		'tintedlens', 'darkaura', 'fairyaura', 'infiltrator', 'parentalbond',
-		'protean', 'strongjaw', 'sweetveil', 'toughclaws','aerilate','normalize',
-		'pixilate','refrigerate'];
-	if (intersection(mon.moves, offensive_abilities))
+		'protean', 'strongjaw', 'sweetveil', 'toughclaws','aerilate',
+		'normalize','pixilate','refrigerate'];
+	if (intersection(mon.moves, offensive_abilities)) {
 		stalliness -= 0.5;
+	}
 
 	let toxic_abilities = ['toxicboost', 'guts', 'quickfeet'];
 	let burn_abilities = ['flareboost', 'guts', 'quickfeet'];
-	if (toxic_abilities.includes(mon.ability) && mon.item === 'toxicorb')
+	if (toxic_abilities.includes(mon.ability) && mon.item === 'toxicorb') {
 		stalliness -= 1;
-	if (burn_abilities.includes(mon.ability) && mon.item === 'flameorb')
+	}
+	if (burn_abilities.includes(mon.ability) && mon.item === 'flameorb') {
 		stalliness -= 1;
+	}
 
 	let boosting_abilities = ['moody', 'speedboost'];
-	if (boosting_abilities.includes(mon.ability))
+	if (boosting_abilities.includes(mon.ability)) {
 		stalliness -= 1;
+	}
 
 	let trapping_abilities = ['arenatrap','magnetpull','shadowtag'];
-	if (trapping_abilities.includes(mon.ability))
+	if (trapping_abilities.includes(mon.ability)) {
 		stalliness -= 1;
+	}
 
 	let trapping_moves = ['block','meanlook','spiderweb','pursuit'];
-	if (intersection(mon.moves, trapping_moves))
+	if (intersection(mon.moves, trapping_moves)) {
 		stalliness -= 0.5;
+	}
 
 	let defensive_abilities = ['dryskin', 'filter', 'hydration', 'icebody',
-		'intimidate', 'ironbarbs', 'marvelscale', 'naturalcure', 'magicguard',
-		'multiscale', 'raindish', 'roughskin', 'solidrock', 'thickfat', 'unaware',
-		'aromaveil', 'bulletproof', 'cheekpouch', 'gooey'];
-	if (intersection(mon.moves, defensive_abilities))
+		'intimidate', 'ironbarbs', 'marvelscale', 'naturalcure',
+		'magicguard', 'multiscale', 'raindish', 'roughskin', 'solidrock',
+		'thickfat', 'unaware', 'aromaveil', 'bulletproof', 'cheekpouch',
+		'gooey'];
+	if (intersection(mon.moves, defensive_abilities)) {
 		stalliness += 0.5;
+	}
 
-	if (mon.ability === 'poisonheal' && mon.item === 'toxicorb')
+	if (mon.ability === 'poisonheal' && mon.item === 'toxicorb') {
 		stalliness += 0.5; // Gliscor moment
+	}
 
 	let hates_offense = ['slowstart','truant','furcoat'];
-	if (hates_offense.includes(mon.ability))
+	if (hates_offense.includes(mon.ability)) {
 		stalliness += 1;
+	}
 
 	let screens = ['reflect', 'lightscreen', 'auroraveil'];
-	if (intersection(mon.moves, screens).length != 0 && mon.item === 'lightclay')
+	if (intersection(mon.moves, screens).length != 0 && mon.item === 'lightclay') {
 		stalliness -= 1;
+	}
 
 	let twostage_boosters = ['curse', 'dragondance', 'growth', 'shiftgear',
 		'swordsdance', 'fierydance', 'nastyplot', 'tailglow', 'quiverdance',
 		'geomancy'];
-	let onestage_boosters = ['acupressure', 'bulkup', 'coil', 'howl', 'workup',
-		'meditate', 'sharpen', 'calmmind', 'chargebeam', 'agility', 'autotomize',
-		'flamecharge', 'rockpolish', 'doubleteam', 'minimize', 'tailwind',
-		'poweruppunch', 'rototiller'];
-	if (mon.moves.includes('bellydrum'))
+	let onestage_boosters = ['acupressure', 'bulkup', 'coil', 'howl',
+		'workup', 'meditate', 'sharpen', 'calmmind', 'chargebeam', 'agility',
+		'autotomize', 'flamecharge', 'rockpolish', 'doubleteam', 'minimize',
+		'tailwind', 'poweruppunch', 'rototiller'];
+	if (mon.moves.includes('bellydrum')) {
 		stalliness -= 2;
-	else if (mon.moves.includes('shellsmash'))
+	}
+	else if (mon.moves.includes('shellsmash')) {
 		stalliness -= 1.5;
-	else if (intersection(mon.moves, twostage_boosters).length != 0)
+	}
+	else if (intersection(mon.moves, twostage_boosters).length != 0) {
 		stalliness -= 1;
-	else if (intersection(mon.moves, onestage_boosters).length != 0)
+	}
+	else if (intersection(mon.moves, onestage_boosters).length != 0) {
 		stalliness -= 0.5;
-	if (mon.moves.includes('substitute'))
+	}
+	if (mon.moves.includes('substitute')) {
 		stalliness -= 0.5;
+	}
 
 	let protection_moves = ['protect','detect','kingsshield','matblock','spikyshield']; // Include banefulbunker and obstruct
-	if (intersection(mon.moves, protection_moves).length != 0)
+	if (intersection(mon.moves, protection_moves).length != 0) {
 		stalliness += 1;
-	if (mon.moves.includes('endeavor'))
+	}
+	if (mon.moves.includes('endeavor')) {
 		stalliness -= 1;
+	}
 	
 	let halving_moves = ['superfang']; // Will want to include nature'smadness
-	if (intersection(mon.moves, halving_moves).length != 0)
+	if (intersection(mon.moves, halving_moves).length != 0) {
 		stalliness -= 0.5;
+	}
 
-	if (mon.moves.includes('trick'))
+	if (mon.moves.includes('trick') || mon.moves.includes('switcheroo')) {
 		stalliness -= 0.5;
+	}
 
-	if (mon.moves.includes('psychoshift'))
+	if (mon.moves.includes('psychoshift')) {
 		stalliness += 0.5;
+	}
 
 	let phazing_moves = ['whirlwind', 'roar', 'circlethrow', 'dragontail'];
-	if (intersection(mon.moves, phazing_moves).length != 0)
+	if (intersection(mon.moves, phazing_moves).length != 0) {
 		stalliness += 0.5;
+	}
 
-	if (mon.item === 'redcard')
+	if (mon.item === 'redcard') {
 		stalliness += 0.5;
+	}
 
 	let clearing_moves = ['haze', 'clearsmog'];
-	if (intersection(mon.moves, clearing_moves).length != 0)
+	if (intersection(mon.moves, clearing_moves).length != 0) {
 		stalliness += 0.5;
+	}
 
 	let paralysis_moves = ['thunderwave', 'stunspore', 'glare', 'nuzzle'];
-	if (intersection(mon.moves, paralysis_moves).length != 0)
+	if (intersection(mon.moves, paralysis_moves).length != 0) {
 		stalliness += 0.5;
+	}
 
 	let confusion_moves = ['supersonic', 'confuseray', 'swagger', 'flatter',
 		'teeterdance', 'yawn'];
-	if (intersection(mon.moves, confusion_moves).length != 0)
+	if (intersection(mon.moves, confusion_moves).length != 0) {
 		stalliness += 0.5;
+	}
 	
 	let sleep_moves = ['darkvoid', 'grasswhistle', 'hypnosis', 'lovelykiss',
 		'sing', 'sleeppowder', 'spore'];
-	if (intersection(mon.moves, sleep_moves).length != 0)
+	if (intersection(mon.moves, sleep_moves).length != 0) {
 		stalliness -= 0.5;
+	}
 
-	if (mon.item === 'rockyhelmet')
+	if (mon.item === 'rockyhelmet') {
 		stalliness += 0.5;
+	}
 
-	if (mon.item === 'weaknesspolicy')
+	if (mon.item === 'weaknesspolicy') {
 		stalliness -= 1;
+	}
 
 	// Should figure out Z moves and other items like Adrenaline Orb
 	let offensive_items = ['firegem', 'watergem', 'electricgem', 'grassgem',
@@ -206,94 +268,119 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		'steelgem', 'normalgem', 'focussash', 'mentalherb', 'powerherb',
 		'whiteherb', 'absorbbulb', 'berserkgene', 'cellbattery', 'redcard',
 		'focussash', 'airballoon', 'ejectbutton', 'shedshell', 'aguavberry',
-		'apicotberry', 'aspearberry', 'babiriberry', 'chartiberry', 'cheriberry',
-		'chestoberry', 'chilanberry', 'chopleberry', 'cobaberry', 'custapberry',
-		'enigmaberry', 'figyberry', 'ganlonberry', 'habanberry', 'iapapaberry',
-		'jabocaberry', 'kasibberry', 'kebiaberry', 'lansatberry', 'leppaberry',
-		'liechiberry', 'lumberry', 'magoberry', 'micleberry', 'occaberry',
-		'oranberry', 'passhoberry', 'payapaberry', 'pechaberry', 'persimberry',
-		'petayaberry', 'rawstberry', 'rindoberry', 'rowapberry', 'salacberry',
-		'shucaberry', 'sitrusberry', 'starfberry', 'tangaberry', 'wacanberry',
-		'wikiberry', 'yacheberry','keeberry','marangaberry','roseliberry','snowball'];
-	if (offensive_items.includes(mon.item))
+		'apicotberry', 'aspearberry', 'babiriberry', 'chartiberry',
+		'cheriberry', 'chestoberry', 'chilanberry', 'chopleberry',
+		'cobaberry', 'custapberry', 'enigmaberry', 'figyberry', 'ganlonberry',
+		'habanberry', 'iapapaberry', 'jabocaberry', 'kasibberry',
+		'kebiaberry', 'lansatberry', 'leppaberry', 'liechiberry', 'lumberry',
+		'magoberry', 'micleberry', 'occaberry', 'oranberry', 'passhoberry',
+		'payapaberry', 'pechaberry', 'persimberry', 'petayaberry',
+		'rawstberry', 'rindoberry', 'rowapberry', 'salacberry', 'shucaberry',
+		'sitrusberry', 'starfberry', 'tangaberry', 'wacanberry', 'wikiberry',
+		'yacheberry','keeberry','marangaberry','roseliberry','snowball'];
+	if (offensive_items.includes(mon.item)) {
 		stalliness -= 0.5;
+	}
 
-	if (mon.ability === 'harvest' || mon.moves.includes('recycle'))
+	if (mon.ability === 'harvest' || mon.moves.includes('recycle')) {
 		stalliness += 1;
+	}
 
-	let recoil_moves = ['jumpkick', 'doubleedge', 'submission', 'petaldance',
-		'hijumpkick', 'outrage', 'volttackle', 'closecombat', 'flareblitz',
-		'bravebird', 'woodhammer', 'headsmash', 'headcharge', 'wildcharge',
-		'takedown', 'dragonascent'];
-	if (intersection(mon.moves, recoil_moves).length != 0)
+	let recoil_moves = ['jumpkick', 'doubleedge', 'submission',
+		'petaldance', 'hijumpkick', 'outrage', 'volttackle', 'closecombat',
+		'flareblitz', 'bravebird', 'woodhammer', 'headsmash', 'headcharge',
+		'wildcharge', 'takedown', 'dragonascent'];
+	if (intersection(mon.moves, recoil_moves).length != 0) {
 		stalliness -= 0.5;
+	}
 
 	let sacrifice_moves = ['selfdestruct', 'explosion', 'destinybond',
 		'perishsong', 'memento', 'healingwish', 'lunardance', 'finalgambit'];
-	if (intersection(mon.moves, sacrifice_moves).length != 0)
+	if (intersection(mon.moves, sacrifice_moves).length != 0) {
 		stalliness -= 1;
+	}
 
 	let ohko_moves = ['guillotine', 'fissure', 'sheercold', 'horndrill'];
-	if (intersection(mon.moves, ohko_moves))
+	if (intersection(mon.moves, ohko_moves)) {
 		stalliness -= 1; // You must be insane or playing AG
+	}
 
 	if (mon.ability === 'snowwarning' || mon.ability === 'sandstream' ||
-			mon.moves.includes('hail') || mon.moves.includes('sandstorm'))
-		stalliness -= 0.5;
+			mon.moves.includes('hail') || mon.moves.includes('sandstorm')) {
+		stalliness += 0.5;
+	}
 
 	if ((mon.species === 'latias' || mon.species === 'latios') &&
 			mon.item === 'souldew') {
-		if (gen >= 7)
+		if (gen >= 7) {
 			stalliness -= 0.25; // Adamant/Lustrous Orb
-		else
+		}
+		else {
 			stalliness -= 0.5; // Free CM boost
+		}
 	}
 		
-	if (mon.species === 'pikachu' && mon.item === 'lightball')
+	if (mon.species === 'pikachu' && mon.item === 'lightball') {
 		stalliness -= 1;
+	}
 
 	if ((mon.species === 'cubone' || mon.species === 'marowak') &&
-			mon.item === 'thickclub')
+			mon.item === 'thickclub') {
 		stalliness -= 1;
+	}
 
 	if (mon.species === 'clamperl') {
-		if (mon.item === 'deepseatooth')
+		if (mon.item === 'deepseatooth') {
 			stalliness -= 1;
-		else if (mon.item === 'deepseascale')
+		}
+		else if (mon.item === 'deepseascale') {
 			stalliness += 1;
+		}
 	}
 
 	let weak_offensive_items = ['expertbelt', 'wiseglasses', 'muscleband',
 		'dracoplate', 'dreadplate', 'earthplate', 'fistplate', 'flameplate',
 		'icicleplate', 'insectplate', 'ironplate', 'meadowplate', 'mindplate',
 		'skyplate', 'splashplate', 'spookyplate', 'stoneplate', 'toxicplate',
-		'zapplate', 'blackglasses', 'charcoal', 'dragonfang', 'hardstone', 'magnet',
-		'metalcoat', 'miracleseed', 'mysticwater', 'nevermeltice', 'poisonbarb',
-		'sharpbeak', 'silkscarf', 'silverpowder', 'softsand', 'spelltag',
-		'twistedspoon', 'pixieplate'];
-	if (weak_offensive_items.includes(mon.item))
-		stalliness -= 0.25;
+		'zapplate', 'blackglasses', 'charcoal', 'dragonfang', 'hardstone',
+		'magnet', 'metalcoat', 'miracleseed', 'mysticwater', 'nevermeltice',
+		'poisonbarb', 'sharpbeak', 'silkscarf', 'silverpowder', 'softsand',
+		'spelltag', 'twistedspoon', 'pixieplate'];
+	if (weak_offensive_items.includes(mon.item)) {
 
-	if (mon.species === 'dialga' && mon.item === 'adamantorb')
 		stalliness -= 0.25;
+	}
 
-	if (mon.species === 'palkia' && mon.item === 'lustrousorb')
+	if (mon.species === 'dialga' && mon.item === 'adamantorb') {
 		stalliness -= 0.25;
+	}
 
-	if (mon.species === 'giratinaorigin' && mon.item === 'griseousorb')
+	if (mon.species === 'palkia' && mon.item === 'lustrousorb') {
+		stalliness -= 0.25;
+	}
+
+	if (mon.species === 'giratinaorigin' && mon.item === 'griseousorb') {
 		stalliness -= 0.25; // I hope you have a Tina-O with a Griseous Orb
+	}
+
+	console.log(`Post Modification Stalliness: ${stalliness}`)
+	// Adjusting so that 0 is the 3HKO mark
+	stalliness -= Math.log2(3);
 
 	let mon_stall: Stalliness = {
 		bias: bias,
 		stalliness: stalliness
 	}
 
+	console.log(`${mon.species}: ${bias}, ${stalliness}`);
+
 	return mon_stall;
 }
 
-function analyzeTeam(team: PokemonSet[], gen: number = 8) {
+export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness | undefined {
 	let total_bias = 0;
-	let total_stalliness: number[] = [];
+	let total_stalliness: number = 0;
+	let num_mons = 0;
 	let team_tags: string[] = [];
 	for (let i = 0; i < team.length; i++) {
 		let mon = team[i];
@@ -301,14 +388,18 @@ function analyzeTeam(team: PokemonSet[], gen: number = 8) {
 		// Will want to include Mega Pokemon at some point
 		// This includes Megas, Primals, Darm-Zen, and Meloetta-Pirouette
 
-		let mon_stall = analyzePokemon(mon);
+		let mon_stall = analyzePokemon(mon, gen);
 		if (mon_stall) { // If it isn't undefined
 			total_bias += mon_stall.bias;
-			total_stalliness.push(mon_stall.stalliness);
-
-			
+			total_stalliness += mon_stall.stalliness;
+			num_mons++;
 		}
 	}
+	if (num_mons == 0) {
+		return undefined;
+	}
+	total_stalliness /= num_mons;
+
 
 	// Tags
 
@@ -492,7 +583,124 @@ function analyzeTeam(team: PokemonSet[], gen: number = 8) {
 		}
 	}
 
+	// Gravity (?)
+	// Will implement later 
 	
+	// VoltTurn
+	let switch_moves = ['voltswitch', 'uturn', 'flipturn', 'batonpass'];
+	let num_switchers = 0;
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if (intersection(mon.moves, switch_moves).length != 0) {
+			num_switchers++;
+		}
+	}
+	if (num_switchers > 2 && !(team_tags.includes('batonpass'))) {
+		team_tags.push('voltturn');
+	}
+
+	// DragMag and Trapping
+	let trapping_abilities = ['arenatrap','magnetpull','shadowtag'];
+	let trapping_moves = ['block','meanlook','spiderweb',];
+	let num_trappers = 0;
+	let num_dragons = 0;
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if (trapping_abilities.includes(mon.ability) ||
+				intersection(mon.moves, trapping_moves).length != 0) {
+			num_trappers++;
+		} else {
+			const currentGen = new Generations(Dex).get(gen as GenerationNum);
+
+			let pokemon_species = currentGen.species.get(mon.species);
+			if (pokemon_species && pokemon_species.types.includes('Dragon')){
+				num_dragons++;
+			}
+		}
+	}
+	if (num_trappers >= 1 && num_dragons >= 2) {
+		team_tags.push('dragmag');
+	} else if (num_trappers >= 2) {
+		team_tags.push('trapper');
+	}
+
+	// F.E.A.R
+	// Will implement later
+	
+	// Choiced
+	let choice_items = ['choicescarf', 'choiceband', 'choicespecs'];
+	let num_choiced = 0;
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if (choice_items.includes(mon.item) && mon.ability != 'klutz') {
+			num_choiced++;
+		}
+	}
+	if (num_choiced >= 4) {
+		// Arbitrary number, but whatever
+		team_tags.push('choice');
+	}
+
+	// SwagPlay
+	// Will implement later
+	
+	// Monotype
+	// Will implement later
+	
+	// Stalliness Tags
+	
+	// Note that the distinction between bulky offense and balanced teams
+	// have not been fully understood. Generally, it comes down to how much
+	// offensive investment you give to your bulky mons.
+	
+	// In addition, semi-stall teams have also been more loosely defined.
+	// The idea is that you get down hazards and like to play it slow, but
+	// also have revenge killers to deal with offensive threats, which
+	// kind of sounds like a balanced team to me but whatever, maybe
+	// balanced has wallbreakers.
+	if (total_stalliness <= -1.0) {
+		team_tags.push('hyperoffense');
+		if (intersection(team_tags, ['multiweather', 'allweather',
+										 'weatherless']).length == 0){
+											if (team_tags.includes('rain')) {
+												team_tags.push('rainoffense');
+											} else if (team_tags.includes('sun')) {
+												team_tags.push('sunoffense');
+											} else if (team_tags.includes('sand')) {
+												team_tags.push('sandoffense');
+											} else if (team_tags.includes('hail')) {
+												team_tags.push('hailoffense');
+											}
+		}
+	} else if (total_stalliness <= 0) {
+		team_tags.push('offense');
+	} else if (total_stalliness <= 1.0) {
+		team_tags.push('balanced');
+	} else if (total_stalliness <= Math.log2(3)) {
+		team_tags.push('semistall');
+	} else {
+		team_tags.push('stall');
+		if (intersection(team_tags, ['multiweather', 'allweather',
+										 'weatherless']).length == 0){
+											if (team_tags.includes('rain')) {
+												team_tags.push('rainstall');
+											} else if (team_tags.includes('sun')) {
+												team_tags.push('sunstall');
+											} else if (team_tags.includes('sand')) {
+												team_tags.push('sandstall');
+											} else if (team_tags.includes('hail')) {
+												team_tags.push('hailstall');
+											}
+		}
+	} 
+
+	let team_stalliness: TeamStalliness = {
+		total_bias: total_bias,
+		total_stalliness: total_stalliness,
+		team_tags: team_tags
+	};
+
+	return team_stalliness;
 }
 
 export interface Stalliness {
@@ -502,6 +710,6 @@ export interface Stalliness {
 
 interface TeamStalliness {
 	total_bias: number
-	total_stalliness: number[]
+	total_stalliness: number
 	team_tags: string[]
 }
