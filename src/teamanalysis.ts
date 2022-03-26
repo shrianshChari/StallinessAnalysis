@@ -1,20 +1,20 @@
 import { PokemonSet } from "@pkmn/sets";
 import { Dex, GenerationNum, StatsTable } from "@pkmn/dex";
 import { Generations } from "@pkmn/data";
-import { intersection } from "lodash";
+import * as _ from "lodash";
 
 // Copied from Antar1011's implementation in Python
 // https://github.com/Antar1011/Smogon-Usage-Stats
 
 // Default gen is SwSh
-export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | undefined { 
+export function analyzePokemon(mon: PokemonSet, gen: number = 8, verbose_output: boolean = false): Stalliness | undefined { 
 	const currentGen = new Generations(Dex).get(gen as GenerationNum);
 
 	let pokemon_species = currentGen.species.get(mon.species);
 
 	// Checking if the pokemon exists
 	if (pokemon_species === undefined) {
-		console.log('Your Pokemon doesn\'t seem to exist.');
+		console.log(`Your Pokemon ${mon.species} doesn\'t seem to exist.`);
 		return undefined;
 	}
 
@@ -76,82 +76,140 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		let damage = ((2 * mon.level + 10) * (off / def) * base_power / 250 + 2) * roll;
 		stalliness = -1 * Math.log2(damage / stats.hp);
 
-		console.log(stats);
-		let debug_damage =`Level: ${mon.level}\nOffense: ${off}\nDefense: ${def}\nBase Power: ${base_power}\nRoll: ${roll}\nRaw Damage: ${damage}\nHP: ${stats.hp}\nRaw Stalliness: ${stalliness}`; 
-		console.log(debug_damage);
+		// In case you want to display statistics
+		if (verbose_output) {
+			console.log(`Analaysis for ${mon.species}:`)
+			console.log(stats);
+			let debug_damage =`Level: ${mon.level}\nOffense: ${off}\nDefense: ${def}\nBase Power: ${base_power}\nRoll: ${roll}\nRaw Damage: ${damage}\nHP: ${stats.hp}\nRaw Stalliness: ${stalliness}`; 
+			console.log(debug_damage);
+		}
 	}
 
 
 	// Moveset modifications
 	if (mon.ability === 'hugepower' || mon.ability === 'purepower') {
+		if (verbose_output)
+			console.log(`${mon.species} doubles its power!`);
+
 		stalliness -= 1;
 	}
 	let choice_items = ['choicescarf', 'choiceband', 'choicespecs'];
-	if (choice_items.includes(mon.item) || mon.item === 'lifeorb') {
+	if (choice_items.includes(mon.item)) {
+		if (verbose_output)
+			console.log(`${mon.species} wields a Choice Item!`);
+
+		stalliness -= 0.5;
+	} else if (mon.item === 'lifeorb') {
+		if (verbose_output)
+			console.log(`${mon.species} wields a Life Orb!`);
+
 		stalliness -= 0.5;
 	}
 	if (mon.item === 'eviolite' && pokemon_species.prevo != undefined) {
+		if (verbose_output) console.log(`${mon.species} abuses Eviolite!`);
+
 		stalliness += 0.5;
 	}
 	if (mon.moves.includes('spikes')) {
+		if (verbose_output)
+			console.log(`${mon.species} spreads Spikes!`);
+
 		stalliness += 0.5;
 	}
 	if (mon.moves.includes('toxicspikes')) {
+		if (verbose_output)
+			console.log(`${mon.species} spreads Toxic Spikes!`);
+
 		stalliness += 0.5;
 	}
 	if (mon.moves.includes('toxic')) {
+		if (verbose_output)
+			console.log(`${mon.species} spreads Toxic!`);
+
 		stalliness += 1;
 	}
 	if (mon.moves.includes('willowisp')) {
+		if (verbose_output)
+			console.log(`${mon.species} spreads burn!`);
+
 		stalliness += 0.5;
 	}
 
 	let healing_moves = ['recover' ,'slackoff', 'healorder', 'milkdrink',
 		'roost', 'moonlight', 'morningsun', 'synthesis', 'wish', 'aquaring',
 		'rest', 'softboiled', 'swallow', 'leechseed'];
-	if (intersection(mon.moves, healing_moves).length != 0) {
+	if (_.intersection(mon.moves, healing_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} can heal!`);
+
 		stalliness += 1;
 	}
 
 	if (mon.ability === 'regenerator') {
+		if (verbose_output)
+			console.log(`${mon.species} can regenerate!`);
+
 		stalliness += 0.5;
 	}
 	
 	let remove_status = ['healbell', 'aromatherapy'];
-	if (intersection(mon.moves, remove_status).length != 0) {
+	if (_.intersection(mon.moves, remove_status).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} removes status!`);
+
 		stalliness += 0.5;
 	}
+
 
 	let offensive_abilities = ['chlorophyll', 'download', 'hustle', 'moxie',
 		'reckless', 'sandrush', 'solarpower', 'swiftswim', 'technician',
 		'tintedlens', 'darkaura', 'fairyaura', 'infiltrator', 'parentalbond',
 		'protean', 'strongjaw', 'sweetveil', 'toughclaws','aerilate',
 		'normalize','pixilate','refrigerate'];
-	if (intersection(mon.moves, offensive_abilities)) {
+	if (offensive_abilities.includes(mon.ability)) {
+		if (verbose_output)
+			console.log(`${mon.species} has an offensive ability!`);
+
 		stalliness -= 0.5;
 	}
+
 
 	let toxic_abilities = ['toxicboost', 'guts', 'quickfeet'];
 	let burn_abilities = ['flareboost', 'guts', 'quickfeet'];
 	if (toxic_abilities.includes(mon.ability) && mon.item === 'toxicorb') {
+		if (verbose_output)
+			console.log(`${mon.species} abuses poison!`);
+
 		stalliness -= 1;
 	}
 	if (burn_abilities.includes(mon.ability) && mon.item === 'flameorb') {
+		if (verbose_output)
+			console.log(`${mon.species} abuses burn!`);
+
 		stalliness -= 1;
 	}
 
 	let boosting_abilities = ['moody', 'speedboost'];
 	if (boosting_abilities.includes(mon.ability)) {
+		if (verbose_output)
+			console.log(`${mon.species} has a stat-boosting ability!`);
+
 		stalliness -= 1;
 	}
 
 	let trapping_abilities = ['arenatrap','magnetpull','shadowtag'];
 	if (trapping_abilities.includes(mon.ability)) {
+		if (verbose_output)
+			console.log(`${mon.species} has a trapping ability!`);
+
 		stalliness -= 1;
 	}
 
 	let trapping_moves = ['block','meanlook','spiderweb','pursuit'];
-	if (intersection(mon.moves, trapping_moves)) {
+	if (_.intersection(mon.moves, trapping_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a trapping move!`);
+
 		stalliness -= 0.5;
 	}
 
@@ -160,23 +218,36 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		'magicguard', 'multiscale', 'raindish', 'roughskin', 'solidrock',
 		'thickfat', 'unaware', 'aromaveil', 'bulletproof', 'cheekpouch',
 		'gooey'];
-	if (intersection(mon.moves, defensive_abilities)) {
+	if (defensive_abilities.includes(mon.ability)) {
+		if (verbose_output)
+			console.log(`${mon.species} has a defensive ability!`)
 		stalliness += 0.5;
 	}
 
+	// console.log(`Partial Stalliness: ${stalliness}`)
+
 	if (mon.ability === 'poisonheal' && mon.item === 'toxicorb') {
+		if (verbose_output)
+			console.log(`${mon.species} abuses Poison Heal!`);
+
 		stalliness += 0.5; // Gliscor moment
 	}
 
 	let hates_offense = ['slowstart','truant','furcoat'];
 	if (hates_offense.includes(mon.ability)) {
+		if (verbose_output)
+			console.log(`${mon.species} hates offense!`);
+
 		stalliness += 1;
 	}
 
 	let screens = ['reflect', 'lightscreen', 'auroraveil'];
-	if (intersection(mon.moves, screens).length != 0 && mon.item === 'lightclay') {
+	if (_.intersection(mon.moves, screens).length != 0 && mon.item === 'lightclay') {
+		if (verbose_output)
+			console.log(`${mon.species} has screens!`);
 		stalliness -= 1;
 	}
+
 
 	let twostage_boosters = ['curse', 'dragondance', 'growth', 'shiftgear',
 		'swordsdance', 'fierydance', 'nastyplot', 'tailglow', 'quiverdance',
@@ -186,78 +257,130 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		'autotomize', 'flamecharge', 'rockpolish', 'doubleteam', 'minimize',
 		'tailwind', 'poweruppunch', 'rototiller'];
 	if (mon.moves.includes('bellydrum')) {
+		if (verbose_output)
+			console.log(`${mon.species} has Belly Drum!`);
+
 		stalliness -= 2;
 	}
 	else if (mon.moves.includes('shellsmash')) {
+		if (verbose_output)
+			console.log(`${mon.species} has Shell Smash!`);
+
 		stalliness -= 1.5;
 	}
-	else if (intersection(mon.moves, twostage_boosters).length != 0) {
+	else if (_.intersection(mon.moves, twostage_boosters).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a two-stage boosting move!`);
+
 		stalliness -= 1;
 	}
-	else if (intersection(mon.moves, onestage_boosters).length != 0) {
+	else if (_.intersection(mon.moves, onestage_boosters).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a single-stage boosting move!`);
+
 		stalliness -= 0.5;
 	}
 	if (mon.moves.includes('substitute')) {
+		if (verbose_output)
+			console.log(`${mon.species} has Substitute!`);
+
 		stalliness -= 0.5;
 	}
 
 	let protection_moves = ['protect','detect','kingsshield','matblock','spikyshield']; // Include banefulbunker and obstruct
-	if (intersection(mon.moves, protection_moves).length != 0) {
+	if (_.intersection(mon.moves, protection_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a protection move!`);
+
 		stalliness += 1;
 	}
 	if (mon.moves.includes('endeavor')) {
+		if (verbose_output)
+			console.log(`${mon.species} has Endeavor!`);
+
 		stalliness -= 1;
 	}
 	
 	let halving_moves = ['superfang']; // Will want to include nature'smadness
-	if (intersection(mon.moves, halving_moves).length != 0) {
+	if (_.intersection(mon.moves, halving_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} can halve its opponent's HP!`);
+
 		stalliness -= 0.5;
 	}
 
 	if (mon.moves.includes('trick') || mon.moves.includes('switcheroo')) {
+		if (verbose_output)
+			console.log(`${mon.species} can change its item with its opponent!`);
+
 		stalliness -= 0.5;
 	}
 
 	if (mon.moves.includes('psychoshift')) {
+		if (verbose_output)
+			console.log(`${mon.species} can shift status to its opponent!`)
 		stalliness += 0.5;
 	}
 
 	let phazing_moves = ['whirlwind', 'roar', 'circlethrow', 'dragontail'];
-	if (intersection(mon.moves, phazing_moves).length != 0) {
+	if (_.intersection(mon.moves, phazing_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} can phaze!`)
 		stalliness += 0.5;
 	}
 
 	if (mon.item === 'redcard') {
+		if (verbose_output)
+			console.log(`${mon.species} has a ${mon.item}!`);
+
 		stalliness += 0.5;
 	}
 
 	let clearing_moves = ['haze', 'clearsmog'];
-	if (intersection(mon.moves, clearing_moves).length != 0) {
+	if (_.intersection(mon.moves, clearing_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a stat clearing move!`);
+
 		stalliness += 0.5;
 	}
 
 	let paralysis_moves = ['thunderwave', 'stunspore', 'glare', 'nuzzle'];
-	if (intersection(mon.moves, paralysis_moves).length != 0) {
+	if (_.intersection(mon.moves, paralysis_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a paralysis move!`);
+
 		stalliness += 0.5;
 	}
 
 	let confusion_moves = ['supersonic', 'confuseray', 'swagger', 'flatter',
 		'teeterdance', 'yawn'];
-	if (intersection(mon.moves, confusion_moves).length != 0) {
+	if (_.intersection(mon.moves, confusion_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a confusion move!`);
+
 		stalliness += 0.5;
 	}
 	
 	let sleep_moves = ['darkvoid', 'grasswhistle', 'hypnosis', 'lovelykiss',
 		'sing', 'sleeppowder', 'spore'];
-	if (intersection(mon.moves, sleep_moves).length != 0) {
+	if (_.intersection(mon.moves, sleep_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has a sleep move!`);
+
 		stalliness -= 0.5;
 	}
 
 	if (mon.item === 'rockyhelmet') {
+		if (verbose_output)
+			console.log(`${mon.species} has a rocky helmet!`);
+
 		stalliness += 0.5;
 	}
 
 	if (mon.item === 'weaknesspolicy') {
+		if (verbose_output)
+			console.log(`${mon.species} has a weakness policy!`);
+		
 		stalliness -= 1;
 	}
 
@@ -279,10 +402,15 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		'sitrusberry', 'starfberry', 'tangaberry', 'wacanberry', 'wikiberry',
 		'yacheberry','keeberry','marangaberry','roseliberry','snowball'];
 	if (offensive_items.includes(mon.item)) {
+		if (verbose_output)
+			console.log(`${mon.species} has a ${mon.item}!`);
+
 		stalliness -= 0.5;
 	}
 
 	if (mon.ability === 'harvest' || mon.moves.includes('recycle')) {
+		console.log(`${mon.species} can recycle its item!`);
+
 		stalliness += 1;
 	}
 
@@ -290,28 +418,38 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		'petaldance', 'hijumpkick', 'outrage', 'volttackle', 'closecombat',
 		'flareblitz', 'bravebird', 'woodhammer', 'headsmash', 'headcharge',
 		'wildcharge', 'takedown', 'dragonascent'];
-	if (intersection(mon.moves, recoil_moves).length != 0) {
+	if (_.intersection(mon.moves, recoil_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} knows a recoil move!`)
 		stalliness -= 0.5;
 	}
 
 	let sacrifice_moves = ['selfdestruct', 'explosion', 'destinybond',
 		'perishsong', 'memento', 'healingwish', 'lunardance', 'finalgambit'];
-	if (intersection(mon.moves, sacrifice_moves).length != 0) {
+	if (_.intersection(mon.moves, sacrifice_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} knows a sacrificial move!`)
 		stalliness -= 1;
 	}
 
 	let ohko_moves = ['guillotine', 'fissure', 'sheercold', 'horndrill'];
-	if (intersection(mon.moves, ohko_moves)) {
+	if (_.intersection(mon.moves, ohko_moves).length != 0) {
+		if (verbose_output)
+			console.log(`${mon.species} has an OHKO move!`);
 		stalliness -= 1; // You must be insane or playing AG
 	}
 
 	if (mon.ability === 'snowwarning' || mon.ability === 'sandstream' ||
 			mon.moves.includes('hail') || mon.moves.includes('sandstorm')) {
+		if (verbose_output)
+			console.log(`${mon.species} has a damaging weather move/ability!`);
 		stalliness += 0.5;
 	}
 
 	if ((mon.species === 'latias' || mon.species === 'latios') &&
 			mon.item === 'souldew') {
+		if (verbose_output)
+			console.log(`${mon.species} has a ${mon.item}!`);
 		if (gen >= 7) {
 			stalliness -= 0.25; // Adamant/Lustrous Orb
 		}
@@ -321,19 +459,27 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 	}
 		
 	if (mon.species === 'pikachu' && mon.item === 'lightball') {
+		if (verbose_output)
+			console.log(`${mon.species} has a Light Ball!`);
 		stalliness -= 1;
 	}
 
 	if ((mon.species === 'cubone' || mon.species === 'marowak') &&
 			mon.item === 'thickclub') {
+		if (verbose_output)
+			console.log(`${mon.species} has a Thick Club!`);
 		stalliness -= 1;
 	}
 
 	if (mon.species === 'clamperl') {
 		if (mon.item === 'deepseatooth') {
+			if (verbose_output)
+				console.log(`${mon.species} has a ${mon.item}!`);
 			stalliness -= 1;
 		}
 		else if (mon.item === 'deepseascale') {
+			if (verbose_output)
+				console.log(`${mon.species} has a ${mon.item}!`);
 			stalliness += 1;
 		}
 	}
@@ -347,23 +493,35 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 		'poisonbarb', 'sharpbeak', 'silkscarf', 'silverpowder', 'softsand',
 		'spelltag', 'twistedspoon', 'pixieplate'];
 	if (weak_offensive_items.includes(mon.item)) {
+		if (verbose_output)
+			console.log(`${mon.species} has a ${mon.item}!`);
 
 		stalliness -= 0.25;
 	}
 
 	if (mon.species === 'dialga' && mon.item === 'adamantorb') {
+		if (verbose_output)
+			console.log(`${mon.species} has a ${mon.item}!`);
+
 		stalliness -= 0.25;
 	}
 
 	if (mon.species === 'palkia' && mon.item === 'lustrousorb') {
+		if (verbose_output)
+			console.log(`${mon.species} has a ${mon.item}!`);
+
 		stalliness -= 0.25;
 	}
 
 	if (mon.species === 'giratinaorigin' && mon.item === 'griseousorb') {
+		if (verbose_output)
+			console.log(`${mon.species} has a ${mon.item}!`);
+
 		stalliness -= 0.25; // I hope you have a Tina-O with a Griseous Orb
 	}
 
-	console.log(`Post Modification Stalliness: ${stalliness}`)
+	if (verbose_output)
+		console.log(`Post Modification Stalliness: ${stalliness}`)
 	// Adjusting so that 0 is the 3HKO mark
 	stalliness -= Math.log2(3);
 
@@ -377,7 +535,8 @@ export function analyzePokemon(mon: PokemonSet, gen: number = 8): Stalliness | u
 	return mon_stall;
 }
 
-export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness | undefined {
+export function analyzeTeam(team: PokemonSet[], gen: number = 8,
+														verbose_output: boolean = false): TeamStalliness | undefined {
 	let total_bias = 0;
 	let total_stalliness: number = 0;
 	let num_mons = 0;
@@ -388,7 +547,7 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness
 		// Will want to include Mega Pokemon at some point
 		// This includes Megas, Primals, Darm-Zen, and Meloetta-Pirouette
 
-		let mon_stall = analyzePokemon(mon, gen);
+		let mon_stall = analyzePokemon(mon, gen, verbose_output);
 		if (mon_stall) { // If it isn't undefined
 			total_bias += mon_stall.bias;
 			total_stalliness += mon_stall.stalliness;
@@ -521,7 +680,7 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness
 			// Does smashpass and geopass count as a baton pass team?
 			// if so, this line will be more useful
 			// if (mon.moves.includes('geomancy') || mon.moves.includes('shellsmash'))
-			if(intersection(mon.moves, boosts).length > 0) {
+			if(_.intersection(mon.moves, boosts).length > 0) {
 				num_pass++;
 			}
 		}
@@ -591,7 +750,7 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness
 	let num_switchers = 0;
 	for (let i = 0; i < team.length; i++) {
 		let mon = team[i];
-		if (intersection(mon.moves, switch_moves).length != 0) {
+		if (_.intersection(mon.moves, switch_moves).length != 0) {
 			num_switchers++;
 		}
 	}
@@ -607,7 +766,7 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness
 	for (let i = 0; i < team.length; i++) {
 		let mon = team[i];
 		if (trapping_abilities.includes(mon.ability) ||
-				intersection(mon.moves, trapping_moves).length != 0) {
+				_.intersection(mon.moves, trapping_moves).length != 0) {
 			num_trappers++;
 		} else {
 			const currentGen = new Generations(Dex).get(gen as GenerationNum);
@@ -660,7 +819,7 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness
 	// balanced has wallbreakers.
 	if (total_stalliness <= -1.0) {
 		team_tags.push('hyperoffense');
-		if (intersection(team_tags, ['multiweather', 'allweather',
+		if (_.intersection(team_tags, ['multiweather', 'allweather',
 										 'weatherless']).length == 0){
 											if (team_tags.includes('rain')) {
 												team_tags.push('rainoffense');
@@ -680,7 +839,7 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8): TeamStalliness
 		team_tags.push('semistall');
 	} else {
 		team_tags.push('stall');
-		if (intersection(team_tags, ['multiweather', 'allweather',
+		if (_.intersection(team_tags, ['multiweather', 'allweather',
 										 'weatherless']).length == 0){
 											if (team_tags.includes('rain')) {
 												team_tags.push('rainstall');

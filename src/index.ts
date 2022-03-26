@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as _ from 'lodash';
 import { importTeam } from './sets'
 import {analyzeTeam} from './teamanalysis';
 
@@ -25,12 +26,16 @@ if (process.argv.length < 3) {
 
 		let gen = 8;
 
-		if (process.argv.length == 4) {
-			if (!(isNaN(parseInt(process.argv[3])))) {
-				gen = parseInt(process.argv[3])
-				gen = Math.min(8, gen);
+		// In case the user wants to specify a generation to use, you would
+		// include "-g {#}".
+		if (process.argv.length >= 4) {
+			if (!(isNaN(_.parseInt(process.argv[3])))) {
+						gen = _.parseInt(process.argv[3]);
 			}
 		}
+
+		// If the user wants to supply verbose output
+		let verbose_output = process.argv.includes('verb');
 
 		// Removing uppercase, spaces, and dashes
 		pokemon_sets = JSON.parse(JSON.stringify(pokemon_sets).toLowerCase().replace(' ', '').replace('-', ''))
@@ -38,9 +43,13 @@ if (process.argv.length < 3) {
 		for (let i = 0; i < pokemon_sets.length; i++) {
 			pokemon_sets[i].ability = pokemon_sets[i].ability.replace(' ', '')
 			pokemon_sets[i].moves = pokemon_sets[i].moves.map((item: string) => item.replace(' ', ''))
+			pokemon_sets[i].item = pokemon_sets[i].item.replace(' ', '')
 		}
-		console.log(pokemon_sets)
-		let team_analysis = analyzeTeam(pokemon_sets, gen);
+
+		if (verbose_output)
+			console.log(pokemon_sets)
+
+		let team_analysis = analyzeTeam(pokemon_sets, gen, verbose_output);
 		if (team_analysis) {
 			console.log(`Total team bias: ${team_analysis.total_bias}`);
 			console.log(`Average team stalliness: ${team_analysis.total_stalliness}`);
