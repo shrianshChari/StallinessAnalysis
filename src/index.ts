@@ -38,12 +38,13 @@ if (process.argv.length < 3) {
 		let verbose_output = process.argv.includes('verb');
 
 		// Removing uppercase, spaces, and dashes
-		pokemon_sets = JSON.parse(JSON.stringify(pokemon_sets).toLowerCase().replace(' ', '').replace('-', ''))
+		pokemon_sets = JSON.parse(JSON.stringify(pokemon_sets).toLowerCase().replace(' ', '').replace('-', ''));
 
 		for (let i = 0; i < pokemon_sets.length; i++) {
-			pokemon_sets[i].ability = pokemon_sets[i].ability.replace(' ', '')
-			pokemon_sets[i].moves = pokemon_sets[i].moves.map((item: string) => item.replace(' ', ''))
-			pokemon_sets[i].item = pokemon_sets[i].item.replace(' ', '')
+			pokemon_sets[i].species = pokemon_sets[i].species.replace(' ', '').replace('-', '');
+			pokemon_sets[i].ability = pokemon_sets[i].ability.replace(' ', '');
+			pokemon_sets[i].moves = pokemon_sets[i].moves.map((item: string) => item.replace(' ', ''));
+			pokemon_sets[i].item = pokemon_sets[i].item.replace(' ', '');
 		}
 
 		if (verbose_output)
