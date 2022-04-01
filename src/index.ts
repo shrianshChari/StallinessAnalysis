@@ -2,17 +2,26 @@ import * as fs from 'fs';
 import * as _ from 'lodash';
 import { importTeam } from './sets'
 import {analyzeTeam} from './teamanalysis';
+import yargs from 'yargs/yargs';
 
-if (process.argv.length < 3) {
+const argv = yargs(process.argv.slice(0)).options({
+	input: { type: 'string', alias: 'i' },
+	gen: { type: 'number', alias: 'g' },
+	verb: { type: 'boolean', default: false, alias: 'v' }
+}).parseSync();
+
+// console.log(argv);
+
+if (argv.input === undefined) {
 	console.log('You need to specify a file to read from!')
 } else {
-	let file_path = process.argv[2]
+	let file_path = argv.input;
 
 	console.log(`Reading data from: ${file_path}`);
 
 	fs.readFile(file_path, 'utf8', (err, data) => {
 		if (err) {
-			console.log(`An error occurred while reading ${process.argv[2]}`)
+			console.log(`An error occurred while reading ${file_path}`)
 			console.log(err)
 			return;
 		}
@@ -24,19 +33,17 @@ if (process.argv.length < 3) {
 			pokemon_sets.pop();
 		}
 
-		let gen = 8;
-
-		// In case the user wants to specify a generation to use, you would
-		// include "-g {#}".
-		if (process.argv.length >= 4) {
-			if (!(isNaN(_.parseInt(process.argv[3])))) {
-						gen = _.parseInt(process.argv[3]);
-			}
+		// Letting the user define the generation to analyze to
+		let gen;
+		if (argv.gen === undefined) {
+			gen = 8;
+		} else {
+			gen = argv.gen;
 		}
 
 		// If the user wants to supply verbose output
-		let verbose_output = process.argv.includes('verb');
-
+		let verbose_output = argv.verb;
+		
 		// Removing uppercase, spaces, and dashes
 		pokemon_sets = JSON.parse(JSON.stringify(pokemon_sets).toLowerCase().replace(' ', '').replace('-', ''));
 
