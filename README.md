@@ -11,7 +11,7 @@ and the code will analyse the stalliness of the team you have given (and the fil
 
 To adjust the generation which is getting analyzed, include the `-g` flag, followed by the generation number (1-8). The default gen is 8:
 ```bash
-npm start -i <path/to/filename> -g <gen \#>
+node out/index.js -i <path/to/filename> -g <gen \#>
 ```
 if you're analyzing a team for Brilliant Diamond and Shining Pearl, you should analyze with respect to generation 7, not 8 (unless gen 1-4 mons got stat buffs after USUM).
 

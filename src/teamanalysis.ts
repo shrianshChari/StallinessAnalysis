@@ -1,5 +1,5 @@
 import { PokemonSet } from "@pkmn/sets";
-import { Dex, GenerationNum, StatsTable } from "@pkmn/dex";
+import { Dex, GenerationNum, StatsTable, TypeName } from "@pkmn/dex";
 import { Generations } from "@pkmn/data";
 import * as _ from "lodash";
 
@@ -784,8 +784,22 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8,
 	}
 
 	// F.E.A.R
-	// Will implement later
-	
+	let num_anti_hazard = 0;
+	let num_fear = 0;
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if ((mon.ability === 'sturdy' || mon.item === 'focussash')
+				&& mon.moves.includes('endeavor')) {
+			num_fear++;
+		} else if (mon.ability === 'magicbounce' || mon.moves.includes('rapidspin')) {
+			num_anti_hazard++;
+		}
+	}
+	if (num_fear >= 3 && num_anti_hazard >= 2) {
+		// Don't even know why this needs to be a thing but sure
+		team_tags.push('fear');
+	}
+
 	// Choiced
 	let choice_items = ['choicescarf', 'choiceband', 'choicespecs'];
 	let num_choiced = 0;
@@ -801,11 +815,37 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8,
 	}
 
 	// SwagPlay
-	// Will implement later
-	
+	let num_swagplayers = 0;
+	for (let i = 0; i < team.length; i++) {
+		let mon = team[i];
+		if (mon.moves.includes('swagger') && mon.moves.includes('foulplay')) {
+			num_swagplayers++;
+		}
+	}
+	if (num_swagplayers >= 2) {
+		// Arbitrary number, but whatever
+		team_tags.push('swagplay');
+	}
+
 	// Monotype
-	// Will implement later
-	
+	let types = getTypes(team[0].species, gen);
+	if (types != undefined) {
+		// You can't have a monotype team if one of ur mons has no types
+
+		for (let i = 1; i < team.length; i++) {
+			let mon = team[i];
+			types = _.intersection(types, getTypes(mon.species, gen));
+		}
+
+		if (types != undefined) {
+			// One of the mons on the way might also have no types
+
+			for (let type of types) {
+				team_tags.push(`mono${type.toLowerCase()}`)
+			}
+		}
+	}
+
 	// Stalliness Tags
 	
 	// Note that the distinction between bulky offense and balanced teams
@@ -860,6 +900,17 @@ export function analyzeTeam(team: PokemonSet[], gen: number = 8,
 	};
 
 	return team_stalliness;
+}
+
+function getTypes(mon: string, gen: number = 8) : undefined | TypeName[] {
+	const currentGen = new Generations(Dex).get(gen as GenerationNum);
+
+	let pokemon_species = currentGen.species.get(mon);
+	if (pokemon_species === undefined) {
+		return undefined;
+	}
+
+	return pokemon_species.types;
 }
 
 export interface Stalliness {
