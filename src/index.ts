@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { importTeam } from './sets'
 import {analyzeTeam} from './teamanalysis';
 import yargs from 'yargs/yargs';
